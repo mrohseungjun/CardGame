@@ -1,3 +1,4 @@
+/*
 package com.example.cardgame.di
 
 import com.example.cardgame.data.remote.dto.PokemonApi
@@ -40,4 +41,4 @@ object AppModule {
         }
     }
 
-}
+}*/
