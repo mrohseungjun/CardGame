@@ -11,7 +11,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.palette.graphics.Palette
 import com.example.cardgame.data.repository.PokemonRepository
+import com.example.cardgame.presentation.mapper.toPokemon
 import com.example.cardgame.presentation.mapper.toPokemonList
+import com.example.cardgame.presentation.model.Pokemon
 import com.example.cardgame.util.Constants
 import com.example.cardgame.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -41,6 +43,7 @@ class CardMainScreenViewModel @Inject constructor(
     private val repository: PokemonRepository
 ) : ViewModel() {
     private var curPage = 0
+    private var pokemonList: List<Pokemon> = emptyList()
 
     private val _gameState = mutableStateOf(GameState())
     val gameState: State<GameState> = _gameState
@@ -55,7 +58,7 @@ class CardMainScreenViewModel @Inject constructor(
     val endReached: State<Boolean> = _endReached
 
     init {
-        loadPokemonAndCreateCards(1)
+        loadPokemonList()
     }
 
     fun decreaseTime() {
@@ -70,50 +73,22 @@ class CardMainScreenViewModel @Inject constructor(
         )
     }
 
-    fun loadPokemonAndCreateCards(stage: Int) {
+    private fun loadPokemonList() {
         viewModelScope.launch {
             _isLoading.value = true
-            val result = repository.getPokemonList(Constants.PAGE_SIZE, curPage * Constants.PAGE_SIZE)
+            val result = repository.getPokemonList(150, 0)  // 한 번에 150개의 포켓몬을 가져옵니다.
 
             when (result) {
                 is Resource.Success -> {
-                    val pokemonListResponse = result.data?.toPokemonList()?.results
-                    curPage++
+                    pokemonList = result.data?.toPokemonList()?.results ?: emptyList()
                     _loadError.value = ""
                     _isLoading.value = false
-
-                    pokemonListResponse?.let { pokemonList ->
-                        val pairsCount = minOf(6 + stage - 1, 12)
-                        val cards = pokemonList.take(pairsCount)
-                            .flatMapIndexed { index, pokemon ->
-                                listOf(
-                                    PokemonCard(
-                                        id = index,
-                                        name = pokemon.name,
-                                        imageResId = pokemon.imageUrl
-                                    ),
-                                    PokemonCard(
-                                        id = index + 100,
-                                        name = pokemon.name,
-                                        imageResId = pokemon.imageUrl
-                                    )
-                                )
-                            }.shuffled()
-
-                        _gameState.value = _gameState.value.copy(
-                            cards = cards,
-                            stage = stage,
-                            timeLeft = maxOf(60 - (stage - 1) * 5, 10) // 스테이지에 따라 시간 조절
-                        )
-                    }
+                    startNewStage(1)  // 초기 스테이지 시작
                 }
-
                 is Resource.Error -> {
-                    Log.d("test", "${result.message}")
                     _loadError.value = result.message ?: "An unexpected error occurred"
                     _isLoading.value = false
                 }
-
                 is Resource.Loading -> {
                     _isLoading.value = true
                 }
@@ -121,14 +96,41 @@ class CardMainScreenViewModel @Inject constructor(
         }
     }
 
-    fun flipCard(cardId: Int) {
+    fun startNewStage(stage: Int) {
+        val pairsCount = minOf(4 + stage, 12)  // 스테이지당 1쌍씩 증가, 최대 12쌍
+        val shuffledPokemon = pokemonList.shuffled().take(pairsCount)
+        val cards = shuffledPokemon.flatMapIndexed { index, pokemon ->
+            listOf(
+                PokemonCard(
+                    id = index,
+                    name = pokemon.name,
+                    imageResId = pokemon.imageUrl
+                ),
+                PokemonCard(
+                    id = index + pairsCount,
+                    name = pokemon.name,
+                    imageResId = pokemon.imageUrl
+                )
+            )
+        }.shuffled()
+
+        _gameState.value = _gameState.value.copy(
+            cards = cards,
+            stage = stage,
+            timeLeft = maxOf(60 - (stage - 1) * 5, 30),  // 스테이지에 따라 시간 조절, 최소 30초
+            isGameOver = false,
+            firstSelectedCardId = null
+        )
+    }
+
+    private fun flipCard(cardId: Int) {
         val updatedCards = _gameState.value.cards.map { card ->
             if (card.id == cardId) card.copy(isFlipped = !card.isFlipped) else card
         }
         _gameState.value = _gameState.value.copy(cards = updatedCards)
     }
 
-    fun matchCards(card1Id: Int, card2Id: Int) {
+    private fun matchCards(card1Id: Int, card2Id: Int) {
         val updatedCards = _gameState.value.cards.map { card ->
             when (card.id) {
                 card1Id, card2Id -> card.copy(isMatched = true)
@@ -152,6 +154,7 @@ class CardMainScreenViewModel @Inject constructor(
             if (firstSelectedCard != null) {
                 if (firstSelectedCard.imageResId == clickedCard.imageResId) {
                     matchCards(firstSelectedCardId, clickedCardId)
+                    checkStageCompletion()
                 } else {
                     viewModelScope.launch {
                         delay(1000)
@@ -161,6 +164,12 @@ class CardMainScreenViewModel @Inject constructor(
                 }
             }
             _gameState.value = _gameState.value.copy(firstSelectedCardId = null)
+        }
+    }
+
+    private fun checkStageCompletion() {
+        if (_gameState.value.cards.all { it.isMatched }) {
+            startNewStage(_gameState.value.stage + 1)
         }
     }
 
