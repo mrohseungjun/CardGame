@@ -38,8 +38,14 @@ data class PokemonResponse(
 
   val imageUrl: String
     inline get() {
-      val index = url.split("/".toRegex()).dropLast(1).last()
+
+      val number = if (url.endsWith("/")) {
+        url.dropLast(1).takeLastWhile { it.isDigit() }
+      } else{
+        url.takeLastWhile { it.isDigit() }
+      }
+
       return "https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/" +
-        "pokemon/other/official-artwork/$index.png"
+        "pokemon/other/official-artwork/$number.png"
     }
 }
