@@ -10,13 +10,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.palette.graphics.Palette
-import com.example.cardgame.domain.repository.PokemonRepository
+import com.example.cardgame.data.repository.PokemonRepository
 import com.example.cardgame.presentation.mapper.toPokemonList
 import com.example.cardgame.util.Constants
 import com.example.cardgame.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -29,12 +27,13 @@ data class PokemonCard(
     var isMatched: Boolean = false
 )
 
+// GameState data class
 data class GameState(
     val cards: List<PokemonCard> = emptyList(),
+    val firstSelectedCardId: Int? = null,
     val stage: Int = 1,
     val timeLeft: Int = 60,
-    val isGameOver: Boolean = false,
-    val firstSelectedCard: PokemonCard? = null
+    val isGameOver: Boolean = false
 )
 
 @HiltViewModel
@@ -46,9 +45,6 @@ class CardMainScreenViewModel @Inject constructor(
     private val _gameState = mutableStateOf(GameState())
     val gameState: State<GameState> = _gameState
 
-    private val _pokemonList = mutableStateOf<List<PokemonCard>>(emptyList())
-    val pokemonList: State<List<PokemonCard>> = _pokemonList
-
     private val _loadError = mutableStateOf("")
     val loadError: State<String> = _loadError
 
@@ -57,8 +53,6 @@ class CardMainScreenViewModel @Inject constructor(
 
     private val _endReached = mutableStateOf(false)
     val endReached: State<Boolean> = _endReached
-
-    private var firstSelectedCard: PokemonCard? = null
 
     init {
         loadPokemonAndCreateCards(1)
@@ -91,16 +85,15 @@ class CardMainScreenViewModel @Inject constructor(
                     pokemonListResponse?.let { pokemonList ->
                         val pairsCount = minOf(6 + stage - 1, 12)
                         val cards = pokemonList.take(pairsCount)
-                            .flatMap { pokemon ->
-                                val pokemonId = 1
+                            .flatMapIndexed { index, pokemon ->
                                 listOf(
                                     PokemonCard(
-                                        id = pokemonId * 2,
+                                        id = index,
                                         name = pokemon.name,
                                         imageResId = pokemon.imageUrl
                                     ),
                                     PokemonCard(
-                                        id = pokemonId * 2 + 1,
+                                        id = index + 100,
                                         name = pokemon.name,
                                         imageResId = pokemon.imageUrl
                                     )
@@ -128,22 +121,47 @@ class CardMainScreenViewModel @Inject constructor(
         }
     }
 
-
-    fun flipCard(card: PokemonCard) {
-        val updatedCards = _gameState.value.cards.map {
-            if (it.id == card.id) it.copy(isFlipped = !it.isFlipped) else it
+    fun flipCard(cardId: Int) {
+        val updatedCards = _gameState.value.cards.map { card ->
+            if (card.id == cardId) card.copy(isFlipped = !card.isFlipped) else card
         }
         _gameState.value = _gameState.value.copy(cards = updatedCards)
     }
 
-    fun matchCards(card1: PokemonCard, card2: PokemonCard) {
-        val updatedCards = _gameState.value.cards.map {
-            when (it.id) {
-                card1.id, card2.id -> it.copy(isMatched = true)
-                else -> it
+    fun matchCards(card1Id: Int, card2Id: Int) {
+        val updatedCards = _gameState.value.cards.map { card ->
+            when (card.id) {
+                card1Id, card2Id -> card.copy(isMatched = true)
+                else -> card
             }
         }
         _gameState.value = _gameState.value.copy(cards = updatedCards)
+    }
+
+    fun handleCardClick(clickedCardId: Int) {
+        val clickedCard = _gameState.value.cards.find { it.id == clickedCardId } ?: return
+        if (clickedCard.isMatched || clickedCard.isFlipped) return
+
+        flipCard(clickedCardId)
+
+        val firstSelectedCardId = _gameState.value.firstSelectedCardId
+        if (firstSelectedCardId == null) {
+            _gameState.value = _gameState.value.copy(firstSelectedCardId = clickedCardId)
+        } else {
+            val firstSelectedCard = _gameState.value.cards.find { it.id == firstSelectedCardId }
+            if (firstSelectedCard != null) {
+                if (firstSelectedCard.imageResId == clickedCard.imageResId) {
+                    matchCards(firstSelectedCardId, clickedCardId)
+                } else {
+                    viewModelScope.launch {
+                        delay(1000)
+                        flipCard(firstSelectedCardId)
+                        flipCard(clickedCardId)
+                    }
+                }
+            }
+            _gameState.value = _gameState.value.copy(firstSelectedCardId = null)
+        }
     }
 
     fun calcDominantColor(drawable: Drawable, onFinish: (Color) -> Unit) {
@@ -152,29 +170,6 @@ class CardMainScreenViewModel @Inject constructor(
         Palette.from(bmp).generate { palatte ->
             palatte?.dominantSwatch?.rgb?.let { colorValue ->
                 onFinish(Color(colorValue))
-            }
-        }
-    }
-
-    fun handleCardClick(clickedCard: PokemonCard) {
-        if (clickedCard.isMatched || clickedCard.isFlipped) return
-
-        flipCard(clickedCard)
-
-        val firstSelectedCard = _gameState.value.firstSelectedCard
-        if (firstSelectedCard == null) {
-            _gameState.value = _gameState.value.copy(firstSelectedCard = clickedCard)
-        } else {
-            if (firstSelectedCard.imageResId == clickedCard.imageResId) {
-                matchCards(firstSelectedCard, clickedCard)
-                _gameState.value = _gameState.value.copy(firstSelectedCard = null)
-            } else {
-                viewModelScope.launch {
-                    delay(1000)
-                    flipCard(firstSelectedCard)
-                    flipCard(clickedCard)
-                    _gameState.value = _gameState.value.copy(firstSelectedCard = null)
-                }
             }
         }
     }

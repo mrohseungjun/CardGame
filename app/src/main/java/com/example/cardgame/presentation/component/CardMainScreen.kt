@@ -38,8 +38,8 @@ fun MatchingGame(viewModel: CardMainScreenViewModel) {
     val isLoading by remember { viewModel.isLoading }
     val loadError by remember { viewModel.loadError }
 
-    LaunchedEffect(Unit) {
-        viewModel.loadPokemonAndCreateCards(1)
+    LaunchedEffect(gameState.stage) {
+        viewModel.loadPokemonAndCreateCards(gameState.stage)
     }
 
     LaunchedEffect(gameState.stage) {
@@ -70,9 +70,9 @@ fun MatchingGame(viewModel: CardMainScreenViewModel) {
                     items(gameState.cards) { card ->
                         CardItem(
                             pokemonCard = card,
-                            onClick = {
+                            onClick = { id ->
                                 if (!gameState.isGameOver) {
-                                    viewModel.handleCardClick(card)
+                                    viewModel.handleCardClick(id)
                                 }
                             }
                         )
@@ -80,7 +80,6 @@ fun MatchingGame(viewModel: CardMainScreenViewModel) {
                 }
             )
         }
-
         if (gameState.isGameOver) {
             Text(
                 "Game Over! You reached Stage ${gameState.stage}",

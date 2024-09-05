@@ -2,7 +2,7 @@ package com.example.cardgame.di
 
 import com.example.cardgame.data.remote.dto.PokemonApi
 import com.example.cardgame.data.repository.PokemonRepositoryImpl
-import com.example.cardgame.domain.repository.PokemonRepository
+import com.example.cardgame.data.repository.PokemonRepository
 import com.example.cardgame.util.Constants
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import dagger.Module

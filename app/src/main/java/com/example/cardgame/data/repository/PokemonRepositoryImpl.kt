@@ -2,7 +2,6 @@ package com.example.cardgame.data.repository
 
 import com.example.cardgame.data.remote.dto.PokemonApi
 import com.example.cardgame.data.remote.dto.PokemonListResponse
-import com.example.cardgame.domain.repository.PokemonRepository
 import com.example.cardgame.util.Resource
 import javax.inject.Inject
 

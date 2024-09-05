@@ -39,7 +39,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 
 @Composable
-fun CardItem(pokemonCard: PokemonCard, onClick: () -> Unit) {
+fun CardItem(pokemonCard: PokemonCard, onClick: (index: Int) -> Unit) {
     val rotation = animateFloatAsState(
         targetValue = if (pokemonCard.isFlipped) 180f else 0f,
         animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
@@ -52,7 +52,7 @@ fun CardItem(pokemonCard: PokemonCard, onClick: () -> Unit) {
                 rotationY = rotation.value,
                 cameraDistance = 12f * LocalDensity.current.density
             )
-            .clickable(onClick = onClick)
+            .clickable(onClick = { onClick(pokemonCard.id) })
     ) {
         if (rotation.value <= 90f) {
             // 카드 뒷면
