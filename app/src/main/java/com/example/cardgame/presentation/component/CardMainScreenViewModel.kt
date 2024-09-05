@@ -64,41 +64,6 @@ class CardMainScreenViewModel @Inject constructor(
         loadPokemonAndCreateCards(1)
     }
 
-    /*fun loadPokemonList() {
-        viewModelScope.launch {
-            _isLoading.value = true
-            val result = repository.getPokemonList(Constants.PAGE_SIZE, curPage * Constants.PAGE_SIZE)
-
-            when (result) {
-                is Resource.Success -> {
-                    val pokemonListResponse = result.data?.toPokemonList()?.results
-                    _endReached.value = curPage * Constants.PAGE_SIZE >= result.data?.count ?: 0
-                    curPage++
-
-                    _loadError.value = ""
-                    _isLoading.value = false
-
-                    _pokemonList.value = pokemonListResponse?.mapIndexed { index, pokemon ->
-                        PokemonCard(
-                            id = index,
-                            name = pokemon.name,
-                            imageResId = pokemon.imageUrl
-                        )
-                    } ?: emptyList()
-                }
-
-                is Resource.Error -> {
-                    _loadError.value = result.message ?: "An unexpected error occurred"
-                    _isLoading.value = false
-                }
-
-                is Resource.Loading -> {
-                    _isLoading.value = true
-                }
-            }
-        }
-    }*/
-
     fun decreaseTime() {
         _gameState.value = _gameState.value.copy(
             timeLeft = _gameState.value.timeLeft - 1

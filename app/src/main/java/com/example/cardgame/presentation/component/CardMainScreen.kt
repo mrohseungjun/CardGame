@@ -53,9 +53,6 @@ fun MatchingGame(viewModel: CardMainScreenViewModel) {
     }
 
     Column {
-        Text("Stage: ${gameState.stage}", modifier = Modifier.padding(16.dp))
-        Text("Time Left: ${gameState.timeLeft}", modifier = Modifier.padding(16.dp))
-
         if (isLoading) {
             // 로딩 인디케이터 표시
             CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
