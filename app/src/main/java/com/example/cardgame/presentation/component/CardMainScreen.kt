@@ -1,6 +1,5 @@
 package com.example.cardgame.presentation.component
 
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,31 +22,20 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.modifier.modifierLocalMapOf
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.cardgame.R
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
+import com.example.cardgame.ui.theme.CardGameTheme
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @Composable
 fun CardMainScreen(
     viewModel: CardMainScreenViewModel = hiltViewModel()
 ) {
-    MatchingGame(viewModel)
-}
-
-@Composable
-fun MatchingGame(viewModel: CardMainScreenViewModel) {
     val gameState by remember { viewModel.gameState }
     val isLoading by remember { viewModel.isLoading }
     val loadError by remember { viewModel.loadError }
@@ -62,6 +50,14 @@ fun MatchingGame(viewModel: CardMainScreenViewModel) {
         }
     }
 
+
+    MatchingGame(gameState = gameState, isLoading = isLoading, loadError = loadError) {
+        viewModel.handleCardClick(it)
+    }
+}
+
+@Composable
+fun MatchingGame(gameState: GameState, isLoading: Boolean, loadError: String, onCardClick: (Int) -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -80,7 +76,9 @@ fun MatchingGame(viewModel: CardMainScreenViewModel) {
                 isLoading -> LoadingIndicator()
                 loadError.isNotEmpty() -> ErrorMessage(loadError)
                 gameState.isGameOver -> GameOverMessage(gameState.stage)
-                else -> GameContent(gameState, viewModel::handleCardClick)
+                else -> GameContent(gameState) { id ->
+                    onCardClick(id)
+                }
             }
         }
     }
@@ -161,4 +159,13 @@ fun GameContent(gameState: GameState, onCardClick: (Int) -> Unit) {
             }
         }
     )
+}
+
+
+@Preview(showBackground = true)
+@Composable
+fun GreetingPreview() {
+    CardGameTheme {
+
+    }
 }
