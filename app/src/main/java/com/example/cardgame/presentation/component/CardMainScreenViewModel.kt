@@ -35,14 +35,14 @@ data class GameState(
     val firstSelectedCardId: Int? = null,
     val stage: Int = 1,
     val timeLeft: Int = 60,
-    val isGameOver: Boolean = false
+    val isGameOver: Boolean = false,
+    val allCardsRevealed: Boolean = true  // 추가된 필드
 )
 
 @HiltViewModel
 class CardMainScreenViewModel @Inject constructor(
     private val repository: PokemonRepository
 ) : ViewModel() {
-    private var curPage = 0
     private var pokemonList: List<Pokemon> = emptyList()
 
     private val _gameState = mutableStateOf(GameState())
@@ -85,10 +85,12 @@ class CardMainScreenViewModel @Inject constructor(
                     _isLoading.value = false
                     startNewStage(1)  // 초기 스테이지 시작
                 }
+
                 is Resource.Error -> {
                     _loadError.value = result.message ?: "An unexpected error occurred"
                     _isLoading.value = false
                 }
+
                 is Resource.Loading -> {
                     _isLoading.value = true
                 }
@@ -97,29 +99,41 @@ class CardMainScreenViewModel @Inject constructor(
     }
 
     fun startNewStage(stage: Int) {
-        val pairsCount = minOf(4 + stage, 12)  // 스테이지당 1쌍씩 증가, 최대 12쌍
-        val shuffledPokemon = pokemonList.shuffled().take(pairsCount)
-        val cards = shuffledPokemon.flatMapIndexed { index, pokemon ->
-            listOf(
-                PokemonCard(
-                    id = index,
-                    name = pokemon.name,
-                    imageResId = pokemon.imageUrl
-                ),
-                PokemonCard(
-                    id = index + pairsCount,
-                    name = pokemon.name,
-                    imageResId = pokemon.imageUrl
+        viewModelScope.launch {
+            val pairsCount = minOf(4 + stage, 12)  // 스테이지당 1쌍씩 증가, 최대 12쌍
+            val shuffledPokemon = pokemonList.shuffled().take(pairsCount)
+            val cards = shuffledPokemon.flatMapIndexed { index, pokemon ->
+                listOf(
+                    PokemonCard(
+                        id = index,
+                        name = pokemon.name,
+                        imageResId = pokemon.imageUrl
+                    ),
+                    PokemonCard(
+                        id = index + pairsCount,
+                        name = pokemon.name,
+                        imageResId = pokemon.imageUrl
+                    )
                 )
-            )
-        }.shuffled()
+            }.shuffled()
 
+            _gameState.value = _gameState.value.copy(
+                cards = cards,
+                stage = stage,
+                timeLeft = maxOf(60 - (stage - 1) * 5, 30),  // 스테이지에 따라 시간 조절, 최소 30초
+                isGameOver = false,
+                firstSelectedCardId = null,
+                allCardsRevealed = true
+            )
+            // 1초 후에 카드 뒤집기
+            delay(3000)
+            flipAllCards()
+        }
+    }
+
+    private fun flipAllCards() {
         _gameState.value = _gameState.value.copy(
-            cards = cards,
-            stage = stage,
-            timeLeft = maxOf(60 - (stage - 1) * 5, 30),  // 스테이지에 따라 시간 조절, 최소 30초
-            isGameOver = false,
-            firstSelectedCardId = null
+            allCardsRevealed = false
         )
     }
 

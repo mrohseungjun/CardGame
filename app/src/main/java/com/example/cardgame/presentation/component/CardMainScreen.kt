@@ -50,14 +50,22 @@ fun CardMainScreen(
         }
     }
 
-
-    MatchingGame(gameState = gameState, isLoading = isLoading, loadError = loadError) {
-        viewModel.handleCardClick(it)
+    MatchingGame(
+        gameState = gameState,
+        isLoading = isLoading,
+        loadError = loadError
+    ) { cardId ->
+        viewModel.handleCardClick(cardId)
     }
 }
 
 @Composable
-fun MatchingGame(gameState: GameState, isLoading: Boolean, loadError: String, onCardClick: (Int) -> Unit) {
+fun MatchingGame(
+    gameState: GameState,
+    isLoading: Boolean,
+    loadError: String,
+    onCardClick: (Int) -> Unit
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -154,13 +162,13 @@ fun GameContent(gameState: GameState, onCardClick: (Int) -> Unit) {
             items(gameState.cards) { card ->
                 CardItem(
                     pokemonCard = card,
+                    allCardsRevealed = gameState.allCardsRevealed,
                     onClick = { id -> if (!gameState.isGameOver) onCardClick(id) },
                 )
             }
         }
     )
 }
-
 
 @Preview(showBackground = true)
 @Composable
