@@ -25,7 +25,7 @@ data class PokemonCard(
     val id: Int,
     val imageResId: String,
     var name: String,
-    var isFlipped: Boolean = false,
+    var isFlipped: Boolean = true,
     var isMatched: Boolean = false
 )
 
@@ -133,7 +133,9 @@ class CardMainScreenViewModel @Inject constructor(
 
     private fun flipAllCards() {
         _gameState.value = _gameState.value.copy(
-            allCardsRevealed = false
+            allCardsRevealed = false,
+            cards = _gameState.value.cards.map { it.copy(isFlipped = false)}
+
         )
     }
 

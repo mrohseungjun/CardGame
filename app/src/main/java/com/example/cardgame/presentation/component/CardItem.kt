@@ -61,25 +61,19 @@ fun CardItem(pokemonCard: PokemonCard, allCardsRevealed: Boolean, onClick: (inde
                 rotationY = rotation.value,
                 cameraDistance = 12f * LocalDensity.current.density
             )
-            .clickable(onClick = { onClick(pokemonCard.id) })
+            .clickable(onClick = { if (!allCardsRevealed) onClick(pokemonCard.id) })
     ) {
-        if (allCardsRevealed) {
-            // 카드 앞면 (포켓몬 이미지)
-            PokemonItem(pokemon = pokemonCard, modifier = Modifier.fillMaxSize())
+        // 카드 뒷면
+        if (rotation.value <= 90f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .shadow(5.dp, RoundedCornerShape(10.dp))
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color.LightGray)
+            )
         } else {
-            // 카드 뒷면
-            if (rotation.value <= 90f) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .shadow(5.dp, RoundedCornerShape(10.dp))
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Color.LightGray)
-                )
-            } else {
-                PokemonItem(pokemon = pokemonCard, modifier = Modifier.fillMaxSize())
-            }
-
+            PokemonItem(pokemon = pokemonCard, modifier = Modifier.fillMaxSize())
         }
     }
 }
