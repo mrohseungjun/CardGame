@@ -1,5 +1,6 @@
 package com.example.cardgame.presentation.component
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.cardgame.ui.theme.CardGameTheme
 import kotlinx.coroutines.delay
 
@@ -40,20 +42,11 @@ fun CardMainScreen(
     val isLoading by remember { viewModel.isLoading }
     val loadError by remember { viewModel.loadError }
 
-    LaunchedEffect(gameState.stage) {
-        while (gameState.timeLeft > 0 && !gameState.isGameOver) {
-            delay(1000)
-            viewModel.decreaseTime()
-        }
-        if (gameState.timeLeft == 0) {
-            viewModel.setGameOver()
-        }
-    }
 
     MatchingGame(
         gameState = gameState,
         isLoading = isLoading,
-        loadError = loadError
+        loadError = loadError,
     ) { cardId ->
         viewModel.handleCardClick(cardId)
     }
@@ -78,13 +71,14 @@ fun MatchingGame(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Spacer(modifier = Modifier.size(10.dp))
-            GameHeader(gameState.stage, gameState.timeLeft)
+            GameHeader(gameState)
 
             when {
                 isLoading -> LoadingIndicator()
                 loadError.isNotEmpty() -> ErrorMessage(loadError)
                 gameState.isGameOver -> GameOverMessage(gameState.stage)
-                else -> GameContent(gameState) { id ->
+                else -> GameContent(
+                    gameState = gameState) { id ->
                     onCardClick(id)
                 }
             }
@@ -93,7 +87,16 @@ fun MatchingGame(
 }
 
 @Composable
-fun GameHeader(stage: Int, timeLeft: Int) {
+fun GameHeader(gameState: GameState,viewModel: CardMainScreenViewModel = hiltViewModel()) {
+    val timeLeft by remember { viewModel.timeLeft }
+
+    LaunchedEffect(gameState.stage) {
+        while (timeLeft > 0 && !gameState.isGameOver) {
+            delay(1000)
+            viewModel.decreaseTime()
+        }
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -104,7 +107,7 @@ fun GameHeader(stage: Int, timeLeft: Int) {
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
-            "Stage: $stage",
+            "Stage: ${gameState.stage}",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onPrimaryContainer
         )
@@ -154,12 +157,14 @@ fun GameOverMessage(stage: Int) {
 }
 
 @Composable
-fun GameContent(gameState: GameState, onCardClick: (Int) -> Unit) {
+fun GameContent(gameState: GameState ,onCardClick: (Int) -> Unit) {
+    Log.d("test","size = ${gameState.cards.size}")
+
     LazyVerticalGrid(
         columns = GridCells.Fixed(4),
         contentPadding = PaddingValues(8.dp),
         content = {
-            items(gameState.cards) { card ->
+            items(gameState.cards, key = { it.id }) { card ->
                 CardItem(
                     pokemonCard = card,
                     allCardsRevealed = gameState.allCardsRevealed,

@@ -5,6 +5,7 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.util.Log
 import androidx.compose.runtime.State
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
@@ -29,14 +30,12 @@ data class PokemonCard(
     var isMatched: Boolean = false
 )
 
-// GameState data class
 data class GameState(
     val cards: List<PokemonCard> = emptyList(),
     val firstSelectedCardId: Int? = null,
     val stage: Int = 1,
-    val timeLeft: Int = 60,
     val isGameOver: Boolean = false,
-    val allCardsRevealed: Boolean = true  // 추가된 필드
+    val allCardsRevealed: Boolean = true
 )
 
 @HiltViewModel
@@ -54,17 +53,22 @@ class CardMainScreenViewModel @Inject constructor(
     private val _isLoading = mutableStateOf(false)
     val isLoading: State<Boolean> = _isLoading
 
-    private val _endReached = mutableStateOf(false)
-    val endReached: State<Boolean> = _endReached
+    private val _timeLeft = mutableIntStateOf(60)
+    val timeLeft: State<Int> = _timeLeft
+
+    private var loadedImagesCount = 0
+    private var totalImagesCount = 0
+
 
     init {
         loadPokemonList()
     }
 
     fun decreaseTime() {
-        _gameState.value = _gameState.value.copy(
-            timeLeft = _gameState.value.timeLeft - 1
-        )
+        _timeLeft.intValue -= 1
+        if (_timeLeft.intValue == 0) {
+            setGameOver()
+        }
     }
 
     fun setGameOver() {
@@ -76,14 +80,14 @@ class CardMainScreenViewModel @Inject constructor(
     private fun loadPokemonList() {
         viewModelScope.launch {
             _isLoading.value = true
-            val result = repository.getPokemonList(150, 0)  // 한 번에 150개의 포켓몬을 가져옵니다.
-
-            when (result) {
+            when (val result = repository.getPokemonList(150, 0)) {  // 한 번에 150개의 포켓몬을 가져옵니다.
                 is Resource.Success -> {
                     pokemonList = result.data?.toPokemonList()?.results ?: emptyList()
-                    _loadError.value = ""
-                    _isLoading.value = false
+
                     startNewStage(1)  // 초기 스테이지 시작
+                    _isLoading.value = false
+                    _loadError.value = ""
+
                 }
 
                 is Resource.Error -> {
@@ -102,6 +106,7 @@ class CardMainScreenViewModel @Inject constructor(
         viewModelScope.launch {
             val pairsCount = minOf(4 + stage, 12)  // 스테이지당 1쌍씩 증가, 최대 12쌍
             val shuffledPokemon = pokemonList.shuffled().take(pairsCount)
+
             val cards = shuffledPokemon.flatMapIndexed { index, pokemon ->
                 listOf(
                     PokemonCard(
@@ -117,15 +122,15 @@ class CardMainScreenViewModel @Inject constructor(
                 )
             }.shuffled()
 
+            totalImagesCount = cards.size
             _gameState.value = _gameState.value.copy(
                 cards = cards,
                 stage = stage,
-                timeLeft = maxOf(60 - (stage - 1) * 5, 30),  // 스테이지에 따라 시간 조절, 최소 30초
                 isGameOver = false,
                 firstSelectedCardId = null,
                 allCardsRevealed = true
             )
-            // 1초 후에 카드 뒤집기
+            _timeLeft.value = maxOf(60 - (stage - 1) * 5, 30)  // 스테이지에 따라 시간 조절, 최소 30초
             delay(3000)
             flipAllCards()
         }
@@ -188,6 +193,22 @@ class CardMainScreenViewModel @Inject constructor(
             startNewStage(_gameState.value.stage + 1)
         }
     }
+
+    fun onImageLoaded() {
+        loadedImagesCount++
+        Log.d("test","onImageLoaded")
+        Log.d("test","loadedImagesCount = $loadedImagesCount")
+        Log.d("test","totalImagesCount = $totalImagesCount")
+        if (loadedImagesCount == totalImagesCount) {
+            Log.d("test","loading")
+            _isLoading.value = false
+            viewModelScope.launch {
+                delay(3000)
+                flipAllCards()
+            }
+        }
+    }
+
 
     fun calcDominantColor(drawable: Drawable, onFinish: (Color) -> Unit) {
         val bmp = (drawable as BitmapDrawable).bitmap.copy(Bitmap.Config.ARGB_8888, true)
